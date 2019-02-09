@@ -3,7 +3,7 @@
 
 // global constants
 var XMLNS = "http://www.w3.org/2000/svg";
-var p;
+// var p;
 //helper functions
 function isIncreasing(array) {
 	return array.every((_,i,arr)=> (arr[i]>arr[i-1])||i==0);
@@ -11,6 +11,35 @@ function isIncreasing(array) {
 
 function empty(element) {
 	while (element.lastChild) {element.removeChild(element.lastChild);}
+}
+
+function roundPlaces(number, places) {
+	return Math.trunc(number * 10**places) / 10**places;
+}
+
+function argmax(array) {
+  return array.map((x, i) => [x, i]).reduce((r, a) => (a[0] > r[0] ? a : r))[1];
+}
+
+function argmin(array) {
+  return array.map((x, i) => [x, i]).reduce((r, a) => (a[0] < r[0] ? a : r))[1];
+}
+
+function makeTicks(limits) {
+	var delta_est = (limits[1] - limits[0]) / 10;
+	var delta0to1 = delta_est/10**Math.ceil(Math.log10(delta_est));
+	var diffs = [1,2,4,5].map(d => Math.abs(delta0to1 - 1/d));
+	var imin = argmin(diffs);
+	var delta = [1,2,4,5].map(d => 1/d)[imin] * 10**Math.ceil(Math.log10(delta_est));
+
+	var nticks = Math.floor((limits[1] - limits[0]) / delta);
+
+	var ticks = [...Array(nticks+1).keys()].map(d => limits[0] + d*delta);
+	if (ticks.slice(-1) != limits[1]) {
+		ticks.push(limits[1]);
+	}
+
+	return ticks;
 }
 
 // Plot class def
@@ -32,8 +61,8 @@ class Plot {
 			Math.abs(parseFloat(xaxline.getAttribute("x2")) - parseFloat(xaxline.getAttribute("x1"))),
 			Math.abs(parseFloat(yaxline.getAttribute("y2")) - parseFloat(yaxline.getAttribute("y1")))
 		];
-		this.xlim = [0, 1];
-		this.ylim = [0, 1];
+		this.xlimvalues = [0, 1];
+		this.ylimvalues = [0, 1];
 
 		this.xticks = [...Array(11).keys()];
 		this.yticks = [...Array(11).keys()];
@@ -82,32 +111,40 @@ class Plot {
 
 	x2svg(xvalue) {
 		// give function x value, return svg % coordinate
-		var frac = (xvalue - this.xlim[0])/(this.xlim[1] - this.xlim[0]);
+		var frac = (xvalue - this.xlimvalues[0])/(this.xlimvalues[1] - this.xlimvalues[0]);
 		return this.axisBox[0] + frac*this.axisBox[2];
 	}
 
 	svg2x(svgx) {
 		// get function x value from svg % coordinate
 		var frac = (svgx - this.axisBox[0]) / this.axisBox[2];
-		return this.xlim[0] + frac * (this.xlim[1] - this.xlim[0]);
+		return this.xlimvalues[0] + frac * (this.xlimvalues[1] - this.xlimvalues[0]);
 	}
 
 	y2svg(yvalue) {
 		// give function y value, return svg % coordinate
-		var frac = (yvalue - this.ylim[0])/(this.ylim[1] - this.ylim[0]);
+		var frac = (yvalue - this.ylimvalues[0])/(this.ylimvalues[1] - this.ylimvalues[0]);
 		return this.axisBox[1] + (1-frac)*this.axisBox[3];
 	}
 
 	svg2y(svgy) {
 		// get function y value from svg % coordinate
 		var frac = (this.axisBox[1] + this.axisBox[3] - svgy) / this.axisBox[3];
-		return this.ylim[0] + frac * (this.ylim[1] - this.ylim[0]);
+		return this.ylimvalues[0] + frac * (this.ylimvalues[1] - this.ylimvalues[0]);
 	}
 
-	set xticks(tickarray) {
+	set xticks(argin) {
+		var tickarray;
+		if (argin == "auto") {
+			// use current limits and autogenerate
+			tickarray = makeTicks(this.xlimvalues);
+		}
+		else {
+			tickarray = argin;
+		}
 		if (isIncreasing(tickarray)) {
 			// call set xlim function and use it
-			this.xlim = [tickarray[0], tickarray[tickarray.length-1]];
+			this.xlimvalues = [tickarray[0], tickarray[tickarray.length-1]];
 			this.xtickvalues = tickarray;
 
 			var xvals = tickarray.map(d => this.x2svg(d));
@@ -132,7 +169,9 @@ class Plot {
 				tick.setAttribute("y2", (this.axisBox[1]+this.axisBox[3]+1) + "%");
 				tick.setAttribute("class", "tick");
 				grp.appendChild(tick);
-			}			
+			}
+
+			this.xticklabels = "auto";
 
 		}
 		else {
@@ -182,10 +221,19 @@ class Plot {
 		return this.xgridvalue;
 	}
 
-	set yticks(tickarray) {
+	set yticks(argin) {
+		var tickarray;
+		if (argin == "auto") {
+			// use current limits and autogenerate
+			tickarray = makeTicks(this.ylimvalues);
+		}
+		else {
+			tickarray = argin;
+		}
+
 		if (isIncreasing(tickarray)) {
 			// call set xlim function and use it
-			this.ylim = [tickarray[0], tickarray[tickarray.length-1]];
+			this.ylimvalues = [tickarray[0], tickarray[tickarray.length-1]];
 			this.ytickvalues = tickarray;
 
 			var yvals = tickarray.map(d => this.y2svg(d));
@@ -210,7 +258,9 @@ class Plot {
 				tick.setAttribute("y2", yvals[i] + "%");
 				tick.setAttribute("class", "tick");
 				grp.appendChild(tick);
-			}			
+			}
+
+			this.yticklabels = "auto";			
 
 		}
 		else {
@@ -220,6 +270,23 @@ class Plot {
 
 	get yticks() {
 		return this.ytickvalues;
+	}
+
+	set xlim(limits){
+		this.xticks = makeTicks(limits);
+	}
+
+	get xlim(){
+		return this.xlimvalues;
+	}
+
+	set ylim(limits){
+		this.yticks = makeTicks(limits);
+	}
+
+	get ylim(){
+		return this.xlimvalues;
+		
 	}
 
 	set yticklabels(argin) {
@@ -349,7 +416,7 @@ class Plot {
 
 		var xfracs = [...Array(viewpixels+1).keys()].map(d => d/viewpixels);
 
-		var xvals = xfracs.map(d => this.xlim[0] + d * (this.xlim[1] - this.xlim[0]));
+		var xvals = xfracs.map(d => this.xlimvalues[0] + d * (this.xlimvalues[1] - this.xlimvalues[0]));
 		var xvalpixels = xfracs.map((_,i) => viewleftpixel + i);
 
 		var yvals = xvals.map(x => eval(fcnstr));
