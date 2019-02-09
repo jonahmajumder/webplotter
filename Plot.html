@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Manipulate Plotter</title>
+	<script type="text/javascript" src="Plot.js"></script>
+	<script>
+	// self executing function here
+	window.onload = function() {
+		p = new Plot(document.getElementById("parentsvg"));
+		console.log(p)
+	};
+	</script>
+</head>
+<body>
+	<svg id="parentsvg" width="800px" height="600px">
+		<style>
+		    .axislabel {
+				text-anchor: middle;
+				dominant-baseline: middle;
+		    }
+		    .axis, .tick {
+				stroke: black;
+				stroke-width: 2px;
+		    }
+		    .gridline {
+		    	stroke: lightgray;
+				stroke-width: 1px;
+		    }
+		    .datapoint {
+		    	fill: black;
+		    	stroke: none;
+		    }
+		</style>
+		<rect id="fullarea" width="100%" height="100%" fill="white" stroke="black" stroke-width="3px" />
+		<rect id="plotarea" x="2.5%" y="2.5%" width="95%" height="95%" fill="none" />
+		<mask id="datamask">
+			<!-- "black out" entire svg -->
+			<rect x="0%" y="0%" width="100%" height="100%" fill="black"/>
+			<!-- "white in" axes box -->
+			<rect x="10%" y="10%" width="80%" height="80%" fill="white"/>
+		</mask>
+		<g id="yaxisgroup" class="axisgroup">
+			<line class="axis" id="yaxisline" x1="10%" y1="10%" x2="10%" y2="90%" />
+			<g id="ytickcontainer"></g>
+			<g id="yticklabelcontainer" class="axislabel"></g>
+			<text id="ylabel" class="axislabel" x="4%" y="50%" style="transform-origin: 4% 50%; transform: rotate(-90deg);">Y Axis Label</text>
+		</g>
+		<g id="xaxisgroup" class="axisgroup">
+			<line class="axis" id="xaxisline" x1="10%" y1="90%" x2="90%" y2="90%" />
+			<g id="xtickcontainer"></g>
+			<g id="xticklabelcontainer" class="axislabel"></g>
+			<text id="xlabel" class="axislabel" x="50%" y="96%">X Axis Label</text>
+		</g>
+		<rect id="axisboxoutline" class="axis" x="10%" y="10%" width="80%" height="80%" fill="none" />
+
+		<g id="datacontainer" mask="url(#datamask)">
+		</g>
+	</svg>
+</body>
+</html>
